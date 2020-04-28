@@ -53,6 +53,7 @@ class PartialParse(object):
         ###         1. Shift
         ###         2. Left Arc
         ###         3. Right Arc
+
         if transition == "S":
             self.stack.append(self.buffer.pop(0))
         elif transition == "LA":
@@ -63,7 +64,7 @@ class PartialParse(object):
             self.dependencies.append((self.stack[-2], self.stack[-1]))
             self.stack.pop()
         else:
-            raise Exception("Unknown transition being passed as parameter: {}".format(transition))
+            raise Exception("Unknown transition being passed as parameter: ", transition)
 
         ### END YOUR CODE
 
@@ -114,9 +115,27 @@ def minibatch_parse(sentences, model, batch_size):
     ###             contains references to the same objects. Thus, you should NOT use the `del` operator
     ###             to remove objects from the `unfinished_parses` list. This will free the underlying memory that
     ###             is being accessed by `partial_parses` and may cause your code to crash.
+    partial_parses = []
+    for sentence in sentences:
+        partial_parses.append(PartialParse(sentence))
+    unfinished_parses = partial_parses[:]
 
+    while len(unfinished_parses) > 0:
 
+        minibatch = unfinished_parses[0:batch_size]
+        #takes in a list of PartialParses as input and returns a list of transitions predicted for each parse
+        transitions = model.predict(minibatch)
+        for i, item in enumerate(transitions):
+            partial_parse = minibatch[i]
+            dependency = partial_parse.parse([item])
+
+            if len(partial_parse.buffer) == 0 and len(partial_parse.stack) == 1:
+                # remove this from unfinished parses, append the dependency of this parse object to dependencies list
+                unfinished_parses.remove(partial_parse)
+        
     ### END YOUR CODE
+    for parser in partial_parses:
+        dependencies.append(parser.dependencies)
 
     return dependencies
 
