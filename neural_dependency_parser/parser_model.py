@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-CS224N 2019-20: Homework 3
 parser_model.py: Feed-Forward Neural Network for Dependency Parsing
-Sahil Chopra <schopra8@stanford.edu>
-Haoshen Hong <haoshen@stanford.edu>
 """
 import argparse
 import numpy as np
@@ -47,8 +44,8 @@ class ParserModel(nn.Module):
         self.embed_size = embeddings.shape[1]
         self.hidden_size = hidden_size
         self.embeddings = nn.Parameter(torch.tensor(embeddings))
+        self.reLu = nn.ReLU()
 
-        ### YOUR CODE HERE (~10 Lines)
         ### TODO:
         ###     1) Declare `self.embed_to_hidden_weight` and `self.embed_to_hidden_bias` as `nn.Parameter`.
         ###        Initialize weight with the `nn.init.xavier_uniform_` function and bias with `nn.init.uniform_`
@@ -66,15 +63,17 @@ class ParserModel(nn.Module):
         ###       For more details checkout this great blogpost:
         ###             http://andyljones.tumblr.com/post/110998971763/an-explanation-of-xavier-initialization
         ###
-        ### Please see the following docs for support:
-        ###     nn.Parameter: https://pytorch.org/docs/stable/nn.html#parameters
-        ###     Initialization: https://pytorch.org/docs/stable/nn.init.html
-        ###     Dropout: https://pytorch.org/docs/stable/nn.html#dropout-layers
 
+        self.embed_to_hidden_weight = nn.Parameter(torch.zeros(self.embed_size*self.n_features, self.hidden_size))
+        self.embed_to_hidden_bias = nn.Parameter(torch.zeros(self.hidden_size))
+        nn.init.xavier_uniform_(self.embed_to_hidden_weight)
+        nn.init.uniform_(self.embed_to_hidden_bias)
+        self.dropout = nn.Dropout(self.dropout_prob)
+        self.hidden_to_logits_weight = nn.Parameter(torch.zeros(self.hidden_size, self.n_classes))
+        nn.init.xavier_uniform_(self.hidden_to_logits_weight)
+        self.hidden_to_logits_bias = nn.Parameter(torch.zeros(self.n_classes))
+        nn.init.uniform_(self.hidden_to_logits_bias)
 
-
-
-        ### END YOUR CODE
 
     def embedding_lookup(self, w):
         """ Utilize `w` to select embeddings from embedding matrix `self.embeddings`
@@ -84,7 +83,6 @@ class ParserModel(nn.Module):
                                 (batch_size, n_features * embed_size)
         """
 
-        ### YOUR CODE HERE (~1-3 Lines)
         ### TODO:
         ###     1) For each index `i` in `w`, select `i`th vector from self.embeddings
         ###     2) Reshape the tensor using `view` function if necessary
@@ -97,17 +95,18 @@ class ParserModel(nn.Module):
         ###       so DO NOT use any high level API like nn.Embedding
         ###       (we are asking you to implement that!). Pay attention to tensor shapes
         ###       and reshape if necessary. Make sure you know each tensor's shape before you run the code!
-        ###
-        ### Pytorch has some useful APIs for you, and you can use either one
-        ### in this problem (except nn.Embedding). These docs might be helpful:
-        ###     Index select: https://pytorch.org/docs/stable/torch.html#torch.index_select
-        ###     Gather: https://pytorch.org/docs/stable/torch.html#torch.gather
-        ###     View: https://pytorch.org/docs/stable/tensors.html#torch.Tensor.view
 
+        x = []
+        for i, item in enumerate(w):
+            embed_list = []
+            for j, item_val in enumerate(item):
+                embed = torch.index_select(self.embeddings, 0, item_val, out=None) 
+                embed_list.append(embed)
+            b = torch.cat(embed_list)
+            x.append(b.view(1, b.shape[0]*b.shape[1]))
 
-
-        ### END YOUR CODE
-        return x
+        out = torch.cat(x, dim=0)
+        return out
 
 
     def forward(self, w):
@@ -129,7 +128,6 @@ class ParserModel(nn.Module):
         @return logits (Tensor): tensor of predictions (output after applying the layers of the network)
                                  without applying softmax (batch_size, n_classes)
         """
-        ### YOUR CODE HERE (~3-5 lines)
         ### TODO:
         ###     Complete the forward computation as described in write-up. In addition, include a dropout layer
         ###     as decleared in `__init__` after ReLU function.
@@ -137,12 +135,11 @@ class ParserModel(nn.Module):
         ### Note: We do not apply the softmax to the logits here, because
         ### the loss function (torch.nn.CrossEntropyLoss) applies it more efficiently.
         ###
-        ### Please see the following docs for support:
-        ###     Matrix product: https://pytorch.org/docs/stable/torch.html#torch.matmul
-        ###     ReLU: https://pytorch.org/docs/stable/nn.html?highlight=relu#torch.nn.functional.relu
 
+        x = self.embedding_lookup(w)
+        h = self.reLu(torch.add(torch.matmul(x, self.embed_to_hidden_weight), self.embed_to_hidden_bias))
+        logits = torch.add(torch.matmul(h, self.hidden_to_logits_weight), self.hidden_to_logits_bias)
 
-        ### END YOUR CODE
         return logits
 
 

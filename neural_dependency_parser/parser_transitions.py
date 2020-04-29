@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-CS224N 2019-20: Homework 3
 parser_transitions.py: Algorithms for completing partial parsess.
-Sahil Chopra <schopra8@stanford.edu>
-Haoshen Hong <haoshen@stanford.edu>
 """
 
 import sys
@@ -19,7 +16,6 @@ class PartialParse(object):
         # The sentence being parsed is kept for bookkeeping purposes. Do not alter it in your code.
         self.sentence = sentence
 
-        ### YOUR CODE HERE (3 Lines)
         ### Your code should initialize the following fields:
         ###     self.stack: The current stack represented as a list with the top of the stack as the
         ###                 last element of the list.
@@ -36,8 +32,6 @@ class PartialParse(object):
         self.dependencies = []
 
 
-        ### END YOUR CODE
-
 
     def parse_step(self, transition):
         """Performs a single parse step by applying the given transition to this partial parse
@@ -46,7 +40,7 @@ class PartialParse(object):
                                 left-arc, and right-arc transitions. You can assume the provided
                                 transition is a legal transition.
         """
-        ### YOUR CODE HERE (~7-10 Lines)
+
         ### TODO:
         ###     Implement a single parsing step, i.e. the logic for the following as
         ###     described in the pdf handout:
@@ -66,7 +60,6 @@ class PartialParse(object):
         else:
             raise Exception("Unknown transition being passed as parameter: ", transition)
 
-        ### END YOUR CODE
 
     def parse(self, transitions):
         """Applies the provided transitions to this PartialParse
@@ -102,7 +95,6 @@ def minibatch_parse(sentences, model, batch_size):
     """
     dependencies = []
 
-    ### YOUR CODE HERE (~8-10 Lines)
     ### TODO:
     ###     Implement the minibatch parse algorithm as described in the pdf handout
     ###
@@ -133,7 +125,6 @@ def minibatch_parse(sentences, model, batch_size):
                 # remove this from unfinished parses, append the dependency of this parse object to dependencies list
                 unfinished_parses.remove(partial_parse)
         
-    ### END YOUR CODE
     for parser in partial_parses:
         dependencies.append(parser.dependencies)
 
