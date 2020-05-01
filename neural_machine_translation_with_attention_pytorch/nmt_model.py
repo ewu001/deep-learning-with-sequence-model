@@ -39,7 +39,7 @@ class NMT(nn.Module):
         self.hidden_size = hidden_size
         self.dropout_rate = dropout_rate
         self.vocab = vocab
-        
+
         # For sanity check only, not relevant to implementation
         self.gen_sanity_check = False
         self.counter = 0
@@ -149,13 +149,6 @@ class NMT(nn.Module):
         ###             Apply the c_projection layer to this in order to compute init_decoder_cell.
         ###             This is c_0^{dec} in the PDF. Here b = batch size, h = hidden size
         ###
-        ### See the following docs, as you may need to use some of the following functions in your implementation:
-        ###     Pack the padded sequence X before passing to the encoder:
-        ###         https://pytorch.org/docs/stable/nn.html#torch.nn.utils.rnn.pack_padded_sequence
-        ###     Pad the packed sequence, enc_hiddens, returned by the encoder:
-        ###         https://pytorch.org/docs/stable/nn.html#torch.nn.utils.rnn.pad_packed_sequence
-        ###     Tensor Concatenation:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.cat
         ###     Tensor Permute:
         ###         https://pytorch.org/docs/stable/tensors.html#torch.Tensor.permute
 
@@ -203,7 +196,6 @@ class NMT(nn.Module):
         # Initialize a list we will use to collect the combined output o_t on each step
         combined_outputs = []
 
-        ### YOUR CODE HERE (~9 Lines)
         ### TODO:
         ###     1. Apply the attention projection layer to `enc_hiddens` to obtain `enc_hiddens_proj`,
         ###         which should be shape (b, src_len, h),
@@ -226,25 +218,17 @@ class NMT(nn.Module):
         ### Note:
         ###    - When using the squeeze() function make sure to specify the dimension you want to squeeze
         ###      over. Otherwise, you will remove the batch dimension accidentally, if batch_size = 1.
-        ###   
-        ### You may find some of these functions useful:
-        ###     Zeros Tensor:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.zeros
-        ###     Tensor Splitting (iteration):
-        ###         https://pytorch.org/docs/stable/torch.html#torch.split
-        ###     Tensor Dimension Squeezing:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.squeeze
-        ###     Tensor Concatenation:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.cat
-        ###     Tensor Stacking:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.stack
 
+        enc_hidden_proj = self.att_projection(enc_hiddens)
+        y_tgt = self.model_embeddings.target(target_padded)
+        for y_t in torch.split(y_tgt, 1):
+            y_t_squeeze = torch.squeeze(y_t, 0)
+            ybar_t = torch.cat((y_t_squeeze, o_prev), -1)
+            dec_state, combined_output, e_t = self.step(ybar_t, dec_state ,enc_hiddens, enc_hidden_proj, enc_masks)
+            combined_outputs.append(combined_output)
+            o_prev = combined_output
+        combined_outputs = torch.stack(combined_outputs)
 
-
-
-
-
-        ### END YOUR CODE
 
         return combined_outputs
 
