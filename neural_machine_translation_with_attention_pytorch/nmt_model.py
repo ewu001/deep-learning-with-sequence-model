@@ -65,7 +65,7 @@ class NMT(nn.Module):
         ###     Dropout Layer:
         ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Dropout
         self.encoder = nn.LSTM(embed_size, hidden_size, 1, True, False, dropout_rate, True)
-        self.decoder = nn.LSTMCell(embed_size, hidden_size)
+        self.decoder = nn.LSTMCell(embed_size + hidden_size, hidden_size)
         self.h_projection = nn.Linear(2*hidden_size, hidden_size, False)
         self.c_projection = nn.Linear(2*hidden_size, hidden_size, False)
         self.combined_output_projection = nn.Linear(3*hidden_size, hidden_size, False)
@@ -226,6 +226,7 @@ class NMT(nn.Module):
             ybar_t = torch.cat((y_t_squeeze, o_prev), -1)
             dec_state, combined_output, e_t = self.step(ybar_t, dec_state ,enc_hiddens, enc_hidden_proj, enc_masks)
             combined_outputs.append(combined_output)
+            # combined output of the attention vector plus dec hidden state with activation at time step t
             o_prev = combined_output
         combined_outputs = torch.stack(combined_outputs)
 
@@ -262,7 +263,6 @@ class NMT(nn.Module):
 
         combined_output = None
 
-        ### YOUR CODE HERE (~3 Lines)
         ### TODO:
         ###     1. Apply the decoder to `Ybar_t` and `dec_state`to obtain the new dec_state.
         ###     2. Split dec_state into its two parts (dec_hidden, dec_cell)
@@ -277,22 +277,16 @@ class NMT(nn.Module):
         ###         - When using the squeeze() function make sure to specify the dimension you want to squeeze
         ###             over. Otherwise, you will remove the batch dimension accidentally, if batch_size = 1.
         ###
-        ### Use the following docs to implement this functionality:
-        ###     Batch Multiplication:
-        ###        https://pytorch.org/docs/stable/torch.html#torch.bmm
-        ###     Tensor Unsqueeze:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.unsqueeze
-        ###     Tensor Squeeze:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.squeeze
 
+        dec_state = self.decoder(Ybar_t, dec_state)
+        (dec_hidden, dec_cell) = dec_state
+        e_t = torch.bmm(torch.unsqueeze(dec_hidden, 1), enc_hiddens_proj.permute(0, 2, 1))
+        e_t = torch.squeeze(e_t, 1)
 
-        ### END YOUR CODE
-
-        # Set e_t to -inf where enc_masks has 1
+        # Set e_t to -inf where enc_masks has 1, exponential function property when applying softmax calculation
         if enc_masks is not None:
             e_t.data.masked_fill_(enc_masks.bool(), -float('inf'))
 
-        ### YOUR CODE HERE (~6 Lines)
         ### TODO:
         ###     1. Apply softmax to e_t to yield alpha_t
         ###     2. Use batched matrix multiplication between alpha_t and enc_hiddens to obtain the
@@ -307,20 +301,14 @@ class NMT(nn.Module):
         ###     4. Apply the combined output projection layer to U_t to compute tensor V_t
         ###     5. Compute tensor O_t by first applying the Tanh function and then the dropout layer.
         ###
-        ### Use the following docs to implement this functionality:
-        ###     Softmax:
-        ###         https://pytorch.org/docs/stable/nn.html#torch.nn.functional.softmax
-        ###     Batch Multiplication:
-        ###        https://pytorch.org/docs/stable/torch.html#torch.bmm
-        ###     Tensor View:
-        ###         https://pytorch.org/docs/stable/tensors.html#torch.Tensor.view
-        ###     Tensor Concatenation:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.cat
-        ###     Tanh:
-        ###         https://pytorch.org/docs/stable/torch.html#torch.tanh
 
+        alpha_t = nn.functional.softmax(e_t)  # (b, src_len)
+        a_t = torch.bmm(torch.unsqueeze(alpha_t, 1), enc_hiddens)
+        a_t = torch.squeeze(a_t, 1) # (b, 2h)
 
-        ### END YOUR CODE
+        u_t = torch.cat((a_t, dec_hidden), 1)
+        v_t = self.combined_output_projection(u_t)
+        O_t = self.dropout(torch.tanh(v_t))
 
         combined_output = O_t
         return dec_state, combined_output, e_t
