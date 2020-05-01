@@ -268,6 +268,8 @@ class NMT(nn.Module):
         ###             over. Otherwise, you will remove the batch dimension accidentally, if batch_size = 1.
         ###
 
+        # Ybar_t: auto-regressive input to the decoder LSTMCell
+        # includes target embedding input at t, concats with previous combined output of previous attention vector and previous decoder hidden
         dec_state = self.decoder(Ybar_t, dec_state)
         (dec_hidden, dec_cell) = dec_state
         e_t = torch.bmm(torch.unsqueeze(dec_hidden, 1), enc_hiddens_proj.permute(0, 2, 1))
