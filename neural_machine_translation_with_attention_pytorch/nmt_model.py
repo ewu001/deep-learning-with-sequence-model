@@ -55,15 +55,7 @@ class NMT(nn.Module):
         ###     self.target_vocab_projection (Linear Layer with no bias), called W_{vocab} in the PDF.
         ###     self.dropout (Dropout Layer)
         ###
-        ### Use the following docs to properly initialize these variables:
-        ###     LSTM:
-        ###         https://pytorch.org/docs/stable/nn.html#torch.nn.LSTM
-        ###     LSTM Cell:
-        ###         https://pytorch.org/docs/stable/nn.html#torch.nn.LSTMCell
-        ###     Linear Layer:
-        ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Linear
-        ###     Dropout Layer:
-        ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Dropout
+
         self.encoder = nn.LSTM(embed_size, hidden_size, 1, True, False, dropout_rate, True)
         self.decoder = nn.LSTMCell(embed_size + hidden_size, hidden_size)
         self.h_projection = nn.Linear(2*hidden_size, hidden_size, False)
@@ -149,8 +141,6 @@ class NMT(nn.Module):
         ###             Apply the c_projection layer to this in order to compute init_decoder_cell.
         ###             This is c_0^{dec} in the PDF. Here b = batch size, h = hidden size
         ###
-        ###     Tensor Permute:
-        ###         https://pytorch.org/docs/stable/tensors.html#torch.Tensor.permute
 
         X = self.model_embeddings.source(source_padded)
         packedX = nn.utils.rnn.pack_padded_sequence(X, source_lengths)
