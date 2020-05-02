@@ -40,6 +40,7 @@ Options:
     --valid-niter=<int>                     perform validation after how many iterations [default: 2000]
     --dropout=<float>                       dropout [default: 0.3]
     --max-decoding-time-step=<int>          maximum number of decoding time steps [default: 70]
+    --pretrain-model=<file>                 if provided, load pretrain model instead of start fresh
 """
 import math
 import sys
@@ -122,6 +123,7 @@ def train(args: Dict):
     log_every = int(args['--log-every'])
     model_save_path = args['--save-to']
 
+    maxEpoch = int(args['--max-epoch'])
     vocab = Vocab.load(args['--vocab'])
 
     model = NMT(embed_size=int(args['--embed-size']),
@@ -152,6 +154,26 @@ def train(args: Dict):
     hist_valid_scores = []
     train_time = begin_time = time.time()
     print('begin Maximum Likelihood training')
+
+    if args['--pretrain-model']:
+        # load model from previous training
+        pretrain_model = args['--pretrain-model']
+        params = torch.load(pretrain_model, map_location=lambda storage, loc: storage)
+        model.load_state_dict(params['state_dict'])
+        model = model.to(device)
+        print('restore from previous trained model', file=sys.stderr)
+
+        print('restore parameters of the optimizers', file=sys.stderr)
+        optimizer.load_state_dict(torch.load(pretrain_model + '.optim'))
+
+        # decay lr, and restore from previously best checkpoint
+        lr = optimizer.param_groups[0]['lr'] * float(args['--lr-decay'])
+        print('load previously best model and decay learning rate to %f' % lr, file=sys.stderr)
+
+        model_save_path = pretrain_model
+    # set new lr
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
 
     while True:
         epoch += 1
@@ -209,7 +231,7 @@ def train(args: Dict):
                 print('begin validation ...', file=sys.stderr)
 
                 # compute dev. ppl and bleu
-                dev_ppl = evaluate_ppl(model, dev_data, batch_size=128)   # dev batch size can be a bit larger
+                dev_ppl = evaluate_ppl(model, dev_data, batch_size=4)   # dev batch size can be a bit larger
                 valid_metric = -dev_ppl
 
                 print('validation: iter %d, dev. ppl %f' % (train_iter, dev_ppl), file=sys.stderr)
@@ -254,7 +276,7 @@ def train(args: Dict):
                         # reset patience
                         patience = 0
 
-                if epoch == int(args['--max-epoch']):
+                if epoch == maxEpoch:
                     print('reached maximum number of epochs!', file=sys.stderr)
                     exit(0)
 
