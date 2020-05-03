@@ -7,3 +7,5 @@ Decoder: multiplicative attention, auto-regressive with beam search decoding of 
 Final BLEU score: 31.23.
 
 Note: Heavily inspired by the https://github.com/pcyin/pytorch_nmt repository
+
+More details to come
